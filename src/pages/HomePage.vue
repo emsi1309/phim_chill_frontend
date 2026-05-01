@@ -12,17 +12,6 @@ const allMovies = ref<any[]>([])
 const allGenres = ref<string[]>([])
 const loading = ref(false)
 
-const colorPalette = ['#0f766e', '#7c3aed', '#9f1239', '#1e40af', '#92400e', '#065f46', '#854d0e', '#991b1b', '#0369a1', '#9d174d', '#164e63']
-const iconPalette = ['🎬', '🔥', '✨', '🎭', '🚀', '💥', '🔮', '🎵', '👻', '❤️', '🧭']
-
-const genreCards = computed(() =>
-  allGenres.value.map((name, idx) => ({
-    name,
-    color: colorPalette[idx % colorPalette.length],
-    icon: iconPalette[idx % iconPalette.length]
-  }))
-)
-
 const fetchMovies = async (q?: string, type?: string, genre?: string) => {
   loading.value = true
   const params = new URLSearchParams()
@@ -41,10 +30,11 @@ const fetchGenres = async () => {
 }
 
 const heroMovies = computed(() => allMovies.value.slice(0, 5))
-const newMovies = computed(() => allMovies.value.slice(0, 8))
+const newMovies = computed(() => allMovies.value.slice(0, 12))
 const seriesMovies = computed(() => allMovies.value.filter(m => m.type === 'SERIES'))
 const singleMovies = computed(() => allMovies.value.filter(m => m.type === 'MOVIE'))
 const isSearching = computed(() => !!(route.query.q || route.query.type || route.query.genre))
+
 const pageTitle = computed(() => {
   if (route.query.q) return `Kết quả tìm: "${route.query.q}"`
   if (route.query.type === 'SERIES') return 'Phim bộ'
@@ -57,21 +47,33 @@ watch(() => route.query, (q) => {
   fetchMovies(q.q as string, q.type as string, q.genre as string)
 }, { immediate: true })
 
-const goGenre = (name: string) => {
-  router.push({ path: '/', query: { genre: name } })
-}
-
 onMounted(fetchGenres)
 </script>
 
 <template>
   <div>
-    <!-- Hero chỉ hiển thị khi không tìm kiếm -->
+    <!-- ===== HERO SLIDER (full-width) ===== -->
     <HeroSlider v-if="!isSearching" :movies="heroMovies" />
-
     <div style="padding-top: 64px" v-if="isSearching" />
 
-    <!-- Kết quả tìm kiếm / lọc -->
+    <!-- ===== GENRE PILLS BAR ===== -->
+    <div v-if="!isSearching && allGenres.length" class="genre-pills-section">
+      <div class="container">
+        <div class="genre-pills-wrap">
+          <span class="genre-pills-label">Thể loại:</span>
+          <div class="genre-pills-scroll">
+            <button
+              v-for="g in allGenres"
+              :key="g"
+              class="genre-pill-btn"
+              @click="router.push({ path: '/', query: { genre: g } })"
+            >{{ g }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SEARCH/FILTER RESULTS ===== -->
     <div v-if="isSearching">
       <div class="container">
         <section class="section">
@@ -81,42 +83,107 @@ onMounted(fetchGenres)
           </div>
           <p v-if="loading" style="color: var(--text3)">Đang tải...</p>
           <p v-else-if="allMovies.length === 0" style="color: var(--text3)">Không tìm thấy phim phù hợp.</p>
-          <div v-else class="movie-row">
-            <div class="movie-row-inner" style="flex-wrap: wrap; min-width: unset">
-              <MovieCard v-for="m in allMovies" :key="m.id" :movie="m" />
-            </div>
+          <div v-else class="search-results-grid">
+            <MovieCard v-for="m in allMovies" :key="m.id" :movie="m" />
           </div>
         </section>
       </div>
     </div>
 
-    <!-- Trang chủ bình thường -->
+    <!-- ===== HOMEPAGE MOVIE ROWS ===== -->
     <template v-else>
-      <!-- Genre grid -->
-      <div class="container">
-        <section class="section">
-          <div class="section-header">
-            <h2 class="section-title">Bạn đang quan tâm gì?</h2>
-          </div>
-          <div class="genre-grid">
-            <button
-              v-for="g in genreCards"
-              :key="g.name"
-              class="genre-card"
-              :style="{ background: `linear-gradient(135deg, ${g.color}, ${g.color}99)` }"
-              @click="goGenre(g.name)"
-            >
-              <span class="icon">{{ g.icon }}</span>
-              <span>{{ g.name }}</span>
-            </button>
-          </div>
-        </section>
-      </div>
-
-      <!-- Phim mới -->
+      <!-- Phim mới cập nhật -->
       <MovieRow title="Phim mới cập nhật" :movies="newMovies" />
-      <MovieRow title="Phim bộ đang chiếu" :movies="seriesMovies" link="/?type=SERIES" />
-      <MovieRow title="Phim lẻ hay nhất" :movies="singleMovies" link="/?type=MOVIE" />
+
+      <!-- Genre spotlight: show 2 rows for first 2 genres if available -->
+      <template v-if="allGenres.length > 0">
+        <MovieRow
+          v-for="g in allGenres.slice(0, 3)"
+          :key="g"
+          :title="g"
+          :movies="allMovies.filter(m => m.genres && m.genres.toLowerCase().includes(g.toLowerCase())).slice(0, 10)"
+          :link="`/?genre=${encodeURIComponent(g)}`"
+        />
+      </template>
+
+      <!-- Phim bộ -->
+      <MovieRow
+        v-if="seriesMovies.length"
+        title="Phim bộ đang chiếu"
+        :movies="seriesMovies"
+        link="/?type=SERIES"
+      />
+
+      <!-- Phim lẻ -->
+      <MovieRow
+        v-if="singleMovies.length"
+        title="Phim lẻ hay nhất"
+        :movies="singleMovies"
+        link="/?type=MOVIE"
+      />
     </template>
   </div>
 </template>
+
+<style scoped>
+/* Genre pills bar (below hero, slim horizontal strip) */
+.genre-pills-section {
+  background: #0d0d17;
+  border-bottom: 1px solid #1e1e33;
+  padding: 10px 0;
+  position: sticky;
+  top: 64px;
+  z-index: 90;
+}
+
+.genre-pills-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.genre-pills-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.genre-pills-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.genre-pills-scroll::-webkit-scrollbar { display: none; }
+
+.genre-pill-btn {
+  padding: 5px 14px;
+  background: #13131f;
+  border: 1px solid #2d2d45;
+  border-radius: 999px;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.genre-pill-btn:hover {
+  background: #e50914;
+  border-color: #e50914;
+  color: #fff;
+}
+
+/* Search results */
+.search-results-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 4px 0;
+}
+</style>

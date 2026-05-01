@@ -58,7 +58,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
             <span v-for="g in genreList(m.genres)" :key="g" class="hero-genre-tag">{{ g }}</span>
           </div>
           <div class="hero-actions">
-            <button class="btn-play" @click="router.push('/watch/' + m.slug)">
+            <button class="btn-play" @click="router.push('/phim/' + m.slug)">
               ▶ Xem ngay
             </button>
             <button class="btn-fav">♡ Yêu thích</button>

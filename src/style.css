@@ -42,7 +42,7 @@ input, textarea { font-family: inherit; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
 
 /* ============ CONTAINER ============ */
-.container { max-width: 1280px; margin: 0 auto; padding: 0 20px; }
+.container { max-width: 1520px; margin: 0 auto; padding: 0 24px; }
 
 /* ============ NAVBAR ============ */
 .navbar {
@@ -59,9 +59,9 @@ input, textarea { font-family: inherit; }
   align-items: center;
   gap: 20px;
   height: 64px;
-  max-width: 1280px;
+  max-width: 1520px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 24px;
 }
 .navbar .logo {
   display: flex;

@@ -9,7 +9,7 @@ const props = defineProps<{
 const router = useRouter()
 
 const go = () => {
-  router.push('/watch/' + props.movie.slug)
+  router.push('/phim/' + props.movie.slug)
 }
 
 const epLabel = (m: any) => {
