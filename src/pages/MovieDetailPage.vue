@@ -241,27 +241,29 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
       <div class="detail-info-panel">
         <div class="info-panel-title">Thông tin phim</div>
         <table class="info-table">
-          <tr><td>Trạng thái</td><td>{{ movie.episodes?.length >= movie.totalEpisodes ? 'Hoàn thành' : 'Đang chiếu' }}</td></tr>
-          <tr><td>Số tập</td><td>{{ movie.type === 'MOVIE' ? 'Full' : `${movie.episodes?.length || 0}/${movie.totalEpisodes || '?'}` }}</td></tr>
-          <tr><td>Chất lượng</td><td>{{ movie.quality || '—' }}</td></tr>
-          <tr><td>Ngôn ngữ</td><td>{{ movie.language || '—' }}</td></tr>
-          <tr><td>Năm</td><td>{{ movie.year || '—' }}</td></tr>
-          <tr><td>Quốc gia</td><td>{{ movie.country || '—' }}</td></tr>
-          <tr v-if="genres.length">
-            <td>Thể loại</td>
-            <td>
-              <router-link
-                v-for="g in genres"
-                :key="g"
-                :to="{ path: '/', query: { genre: g } }"
-                class="genre-tag-sm"
-              >{{ g }}</router-link>
-            </td>
-          </tr>
-          <tr v-if="actors.length">
-            <td>Diễn viên</td>
-            <td>{{ actors.slice(0, 4).join(', ') }}{{ actors.length > 4 ? '...' : '' }}</td>
-          </tr>
+          <tbody>
+            <tr><td>Trạng thái</td><td>{{ movie.episodes?.length >= movie.totalEpisodes ? 'Hoàn thành' : 'Đang chiếu' }}</td></tr>
+            <tr><td>Số tập</td><td>{{ movie.type === 'MOVIE' ? 'Full' : `${movie.episodes?.length || 0}/${movie.totalEpisodes || '?'}` }}</td></tr>
+            <tr><td>Chất lượng</td><td>{{ movie.quality || '—' }}</td></tr>
+            <tr><td>Ngôn ngữ</td><td>{{ movie.language || '—' }}</td></tr>
+            <tr><td>Năm</td><td>{{ movie.year || '—' }}</td></tr>
+            <tr><td>Quốc gia</td><td>{{ movie.country || '—' }}</td></tr>
+            <tr v-if="genres.length">
+              <td>Thể loại</td>
+              <td>
+                <router-link
+                  v-for="g in genres"
+                  :key="g"
+                  :to="{ path: '/', query: { genre: g } }"
+                  class="genre-tag-sm"
+                >{{ g }}</router-link>
+              </td>
+            </tr>
+            <tr v-if="actors.length">
+              <td>Diễn viên</td>
+              <td>{{ actors.slice(0, 4).join(', ') }}{{ actors.length > 4 ? '...' : '' }}</td>
+            </tr>
+          </tbody>
         </table>
       </div>
     </div>
