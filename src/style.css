@@ -78,6 +78,7 @@ input, textarea { font-family: inherit; }
   object-fit: contain;
   border-radius: 10px;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45)) saturate(1.08);
+  mix-blend-mode: screen;
 }
 .navbar .logo span { color: var(--text); }
 
@@ -863,6 +864,7 @@ input, textarea { font-family: inherit; }
   object-fit: contain;
   border-radius: 12px;
   filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.45)) saturate(1.08);
+  mix-blend-mode: screen;
 }
 .footer p { font-size: 13px; color: var(--text3); }
 
