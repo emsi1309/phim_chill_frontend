@@ -128,7 +128,7 @@ onMounted(fetchGenres)
 <style scoped>
 /* Genre pills bar (below hero, slim horizontal strip) */
 .genre-pills-section {
-  background: #0d0d17;
+  background: var(--bg);
   border-bottom: 1px solid #1e1e33;
   padding: 10px 0;
   position: sticky;
@@ -162,7 +162,7 @@ onMounted(fetchGenres)
 
 .genre-pill-btn {
   padding: 5px 14px;
-  background: #13131f;
+  background: var(--bg2);
   border: 1px solid #2d2d45;
   border-radius: 999px;
   color: #94a3b8;

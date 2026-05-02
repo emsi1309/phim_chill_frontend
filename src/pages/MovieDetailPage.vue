@@ -358,8 +358,8 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(to right, rgba(13,13,23,1) 0%, rgba(13,13,23,0.88) 45%, rgba(13,13,23,0.5) 100%),
-    linear-gradient(to top, rgba(13,13,23,1) 0%, transparent 40%);
+    linear-gradient(to right, rgba(26,29,41,1) 0%, rgba(26,29,41,0.88) 45%, rgba(26,29,41,0.45) 100%),
+    linear-gradient(to top, rgba(26,29,41,1) 0%, transparent 40%);
 }
 
 .detail-hero-body {
@@ -511,7 +511,7 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
 
 /* ===== TABS ===== */
 .detail-tabs-bar {
-  background: #13131f;
+  background: var(--bg2);
   border-bottom: 1px solid #2d2d45;
   position: sticky;
   top: 64px;
@@ -574,7 +574,7 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
   align-items: center;
   justify-content: center;
   height: 46px;
-  background: #1a1a2e;
+  background: var(--bg3);
   border: 1px solid #2d2d45;
   border-radius: 8px;
   color: #e2e8f0;
@@ -641,7 +641,7 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
 
 /* Info panel */
 .detail-info-panel {
-  background: #13131f;
+  background: var(--bg2);
   border: 1px solid #2d2d45;
   border-radius: 12px;
   padding: 20px;
@@ -706,7 +706,7 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
 }
 .comment-textarea {
   width: 100%;
-  background: #13131f;
+  background: var(--bg2);
   border: 1px solid #2d2d45;
   border-radius: 8px;
   padding: 12px;
@@ -752,7 +752,7 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
 
 /* Rating section */
 .rating-section {
-  background: #13131f;
+  background: var(--bg2);
   border: 1px solid #2d2d45;
   border-radius: 12px;
   padding: 24px;

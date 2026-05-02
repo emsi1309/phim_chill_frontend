@@ -1,17 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #0d0d17;
-  --bg2: #13131f;
-  --bg3: #1a1a2e;
-  --bg4: #22223a;
+  /* RoPhim-like: nền xanh-xám đậm vừa (#1a1d29), khối nổi (#24283b), nav tối hơn (#12151e) */
+  --bg: #1a1d29;
+  --bg2: #1e2233;
+  --bg3: #24283b;
+  --bg4: #2d3350;
+  --nav-bg: #12151e;
   --accent: #e50914;
   --accent2: #b91c1c;
   --green: #22c55e;
   --text: #f1f5f9;
   --text2: #94a3b8;
   --text3: #64748b;
-  --border: #2d2d45;
+  --border: #353b52;
   --r: 8px;
   --r2: 12px;
   --r3: 16px;
@@ -49,7 +51,7 @@ input, textarea { font-family: inherit; }
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 1000;
-  background: linear-gradient(to bottom, rgba(13,13,23,.98) 0%, rgba(13,13,23,.85) 100%);
+  background: linear-gradient(to bottom, rgba(18,21,30,.97) 0%, rgba(26,29,41,.9) 100%);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255,255,255,.05);
   height: 64px;
@@ -192,12 +194,12 @@ input, textarea { font-family: inherit; }
   position: absolute; inset: 0;
   background: linear-gradient(
     to right,
-    rgba(13,13,23,1) 0%,
-    rgba(13,13,23,.85) 30%,
-    rgba(13,13,23,.4) 60%,
-    rgba(13,13,23,.15) 100%
+    rgba(26,29,41,1) 0%,
+    rgba(26,29,41,.82) 30%,
+    rgba(26,29,41,.38) 60%,
+    rgba(26,29,41,.12) 100%
   ),
-  linear-gradient(to top, rgba(13,13,23,1) 0%, transparent 40%);
+  linear-gradient(to top, rgba(26,29,41,1) 0%, transparent 40%);
 }
 .hero-content {
   position: absolute;

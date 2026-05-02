@@ -92,6 +92,6 @@ onUnmounted(() => {
   justify-content: center;
   color: #64748b;
   font-size: 15px;
-  background: #0d0d17;
+  background: var(--bg);
 }
 </style>

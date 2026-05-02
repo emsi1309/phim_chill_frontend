@@ -50,7 +50,7 @@ const scrollRight = () => {
   z-index: 10;
   width: 40px;
   height: 70px;
-  background: linear-gradient(to right, rgba(13,13,23,0.95), rgba(13,13,23,0.7));
+  background: linear-gradient(to right, rgba(26,29,41,0.95), rgba(26,29,41,0.7));
   border: none;
   color: #e2e8f0;
   font-size: 28px;
@@ -64,6 +64,6 @@ const scrollRight = () => {
 }
 .row-wrapper:hover .row-arrow { opacity: 1; }
 .row-arrow:hover { background: rgba(229,9,20,0.6); }
-.row-arrow-left { left: 0; background: linear-gradient(to right, rgba(13,13,23,0.98), rgba(13,13,23,0.5)); }
-.row-arrow-right { right: 0; background: linear-gradient(to left, rgba(13,13,23,0.98), rgba(13,13,23,0.5)); }
+.row-arrow-left { left: 0; background: linear-gradient(to right, rgba(26,29,41,0.98), rgba(26,29,41,0.5)); }
+.row-arrow-right { right: 0; background: linear-gradient(to left, rgba(26,29,41,0.98), rgba(26,29,41,0.5)); }
 </style>
