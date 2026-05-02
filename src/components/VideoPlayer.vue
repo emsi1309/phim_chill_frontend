@@ -12,11 +12,14 @@ const props = withDefaults(
     resumeSeconds?: number
     /** Tắt khi đang chờ popup tiếp tục (không ghi đè progress) */
     saveProgress?: boolean
+    /** Mỗi lần ấn ← / → trên video (khi đã focus): tua bấy nhiêu giây (trình duyệt mặc định thường ~60s) */
+    seekStepSeconds?: number
   }>(),
   {
     progressKey: null,
     resumeSeconds: 0,
     saveProgress: true,
+    seekStepSeconds: 10,
   }
 )
 
@@ -105,6 +108,25 @@ function onPlaybackEnded() {
   emit('ended')
 }
 
+function onVideoKeydown(e: KeyboardEvent) {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+  const el = videoEl.value
+  if (!el) return
+  e.preventDefault()
+  const step = Math.max(1, props.seekStepSeconds)
+  if (e.key === 'ArrowLeft') {
+    el.currentTime = Math.max(0, el.currentTime - step)
+    return
+  }
+  const d = el.duration
+  const t = el.currentTime + step
+  if (Number.isFinite(d) && d > 0) {
+    el.currentTime = Math.min(d - 0.05, t)
+  } else {
+    el.currentTime = t
+  }
+}
+
 const loadHls = async (url: string) => {
   await nextTick()
   if (!videoEl.value) return
@@ -177,6 +199,8 @@ onUnmounted(() => {
       controls
       playsinline
       preload="metadata"
+      tabindex="0"
+      @keydown="onVideoKeydown"
       @ended="onPlaybackEnded"
       style="width:100%;height:100%;background:#000;display:block"
     />
