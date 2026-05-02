@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import VideoPlayer from '../components/VideoPlayer.vue'
 import { API_BASE, authHeaders, token, resolveMediaUrl } from '../auth'
@@ -136,6 +136,86 @@ const streamsForCurrentLane = computed(() => {
 const laneFolded = reactive<Record<string, boolean>>({})
 
 const streamUrl = computed(() => selectedServer.value?.streamUrl || '')
+
+const LS_PLAYBACK_PREFIX = 'phimchill_playback_v1'
+
+const playbackStorageKey = computed(() => {
+  if (!movie.value?.id) return ''
+  return `${LS_PLAYBACK_PREFIX}_${movie.value.id}_${currentEpOrder.value}`
+})
+
+function formatResumeTime(seconds: number): string {
+  const s = Math.floor(seconds % 60)
+  const m = Math.floor(seconds / 60) % 60
+  const h = Math.floor(seconds / 3600)
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function readOfferResume(key: string): number | null {
+  if (!key) return null
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const o = JSON.parse(raw) as { seconds: number; duration?: number }
+    const sec = o.seconds
+    if (!Number.isFinite(sec) || sec < 20) return null
+    if (o.duration && Number.isFinite(o.duration) && o.duration > 0 && sec >= o.duration - 50) {
+      return null
+    }
+    return sec
+  } catch {
+    return null
+  }
+}
+
+/** Có mốc xem dở — hiện popup trước khi mount player */
+const resumePrompt = ref<{ seconds: number } | null>(null)
+const chosenResumeSeconds = ref(0)
+
+watch(
+  [() => movie.value?.id, currentEpOrder],
+  () => {
+    chosenResumeSeconds.value = 0
+    resumePrompt.value = null
+    nextTick(() => {
+      const key = playbackStorageKey.value
+      if (!key) return
+      const sec = readOfferResume(key)
+      if (sec != null) resumePrompt.value = { seconds: sec }
+    })
+  },
+  { immediate: true }
+)
+
+watch(
+  () => selectedServer.value?.id,
+  (id, oldId) => {
+    if (oldId != null && id != null && id !== oldId) {
+      chosenResumeSeconds.value = 0
+    }
+  }
+)
+
+function onResumeContinue() {
+  const p = resumePrompt.value
+  if (!p) return
+  chosenResumeSeconds.value = p.seconds
+  resumePrompt.value = null
+}
+
+function onResumeFromStart() {
+  const key = playbackStorageKey.value
+  if (key) {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      /* ignore */
+    }
+  }
+  chosenResumeSeconds.value = 0
+  resumePrompt.value = null
+}
 
 const genres = computed<string[]>(() => {
   if (!movie.value?.genres) return []
@@ -290,8 +370,31 @@ watch(() => route.params.slug, (s) => s && fetchAll(s as string), { immediate: t
       <!-- Player + Episode panel row -->
       <div class="wep-player-row" :class="{ 'panel-open': showEpPanel }">
         <!-- Player column -->
-        <div class="wep-player-col">
-          <VideoPlayer :key="`${currentEpOrder}-${streamUrl}`" :src="streamUrl" @ended="onVideoEnded" />
+        <div class="wep-player-col wep-player-col--stack">
+          <div v-if="resumePrompt" class="wep-resume-overlay" role="dialog" aria-modal="true" aria-labelledby="wep-resume-title">
+            <div class="wep-resume-card">
+              <p id="wep-resume-title" class="wep-resume-text">
+                Bạn đang xem dở tới <strong>{{ formatResumeTime(resumePrompt.seconds) }}</strong>. Bạn muốn tiếp tục hay xem lại từ đầu?
+              </p>
+              <div class="wep-resume-actions">
+                <button type="button" class="wep-resume-btn wep-resume-btn-primary" @click="onResumeContinue">
+                  Tiếp tục xem
+                </button>
+                <button type="button" class="wep-resume-btn" @click="onResumeFromStart">
+                  Xem lại từ đầu
+                </button>
+              </div>
+            </div>
+          </div>
+          <VideoPlayer
+            v-if="!resumePrompt"
+            :key="`${currentEpOrder}-${streamUrl}`"
+            :src="streamUrl"
+            :progress-key="playbackStorageKey || undefined"
+            :resume-seconds="chosenResumeSeconds"
+            :save-progress="true"
+            @ended="onVideoEnded"
+          />
         </div>
 
         <!-- Episode side panel -->
@@ -654,6 +757,59 @@ watch(() => route.params.slug, (s) => s && fetchAll(s as string), { immediate: t
 .wep-player-col {
   width: 100%;
   background: #000;
+}
+.wep-player-col--stack {
+  position: relative;
+  min-height: 200px;
+}
+.wep-resume-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.88);
+  padding: 24px;
+}
+.wep-resume-card {
+  max-width: 420px;
+  padding: 24px;
+  border-radius: 12px;
+  background: var(--bg2, #1e293b);
+  border: 1px solid var(--border, #334155);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+.wep-resume-text {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+.wep-resume-text strong {
+  color: #fbbf24;
+}
+.wep-resume-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.wep-resume-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--border, #334155);
+  background: var(--bg3, #0f172a);
+  color: #e2e8f0;
+}
+.wep-resume-btn:hover {
+  filter: brightness(1.08);
+}
+.wep-resume-btn-primary {
+  background: #e50914;
+  border-color: #b91c1c;
+  color: #fff;
 }
 
 /* Episode side panel */
