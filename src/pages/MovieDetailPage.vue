@@ -28,6 +28,7 @@ const genres = computed<string[]>(() => {
 })
 
 const actors = computed<string[]>(() => movie.value?.actors || [])
+const directors = computed<string[]>(() => movie.value?.directors || [])
 
 const posterSrc = computed(() => {
   const m = movie.value
@@ -247,7 +248,12 @@ watch(() => route.params.slug, s => s && fetchMovie(s as string), { immediate: t
             <tr><td>Chất lượng</td><td>{{ movie.quality || '—' }}</td></tr>
             <tr><td>Ngôn ngữ</td><td>{{ movie.language || '—' }}</td></tr>
             <tr><td>Năm</td><td>{{ movie.year || '—' }}</td></tr>
+            <tr><td>Thời lượng</td><td>{{ movie.runtime || (movie.runtimeMinutes ? `${movie.runtimeMinutes} phút` : '—') }}</td></tr>
             <tr><td>Quốc gia</td><td>{{ movie.country || '—' }}</td></tr>
+            <tr v-if="directors.length">
+              <td>Đạo diễn</td>
+              <td>{{ directors.join(', ') }}</td>
+            </tr>
             <tr v-if="genres.length">
               <td>Thể loại</td>
               <td>
