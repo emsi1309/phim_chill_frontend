@@ -59,6 +59,30 @@ function streamLaneKey(serverName: string | undefined): string {
   return t
 }
 
+/** Phần sau " - " (vd. Nguồn Phát #01) — dùng cho nút đổi nguồn trong cùng lane */
+function streamSourceButtonLabel(serverName: string | undefined): string {
+  if (!serverName) return ''
+  const t = serverName.trim()
+  const cut = t.indexOf(' - ')
+  if (cut > 0) return t.slice(cut + 3).trim()
+  return t
+}
+
+/** Query ?nguon= có thể không dấu (Thuyet) trong khi DB có dấu (Thuyết) */
+function normalizeLaneForCompare(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+function lanesEquivalent(a: string, b: string): boolean {
+  if (!a || !b) return false
+  return normalizeLaneForCompare(a) === normalizeLaneForCompare(b)
+}
+
 function laneSortOrder(key: string): number {
   const k = key.toLowerCase()
   if (k.includes('thuyết') || k.includes('thuyet')) return 0
@@ -83,9 +107,31 @@ const laneKeys = computed(() => {
 function episodesInLane(laneKey: string) {
   if (!movie.value?.episodes?.length || !laneKey) return [] as any[]
   return movie.value.episodes.filter((ep: any) =>
-    (ep.streams || []).some((s: any) => streamLaneKey(s.serverName) === laneKey)
+    (ep.streams || []).some((s: any) => lanesEquivalent(streamLaneKey(s.serverName), laneKey))
   )
 }
+
+/** Lane đang xem: từ ?nguon= hoặc nguồn đã chọn / tập mặc định */
+const activeLaneKey = computed(() => {
+  const q = String(route.query.nguon || '').trim()
+  if (q) return q
+  const ep = activeEpisode.value as any
+  if (!ep?.streams?.length) return ''
+  if (selectedServer.value?.serverName) return streamLaneKey(selectedServer.value.serverName)
+  return streamLaneKey(ep.streams[0].serverName)
+})
+
+/** Chỉ các nguồn thuộc lane hiện tại (Thuyết minh / Vietsub tách biệt) */
+const streamsForCurrentLane = computed(() => {
+  const ep = activeEpisode.value as any
+  if (!ep?.streams?.length) return [] as any[]
+  const lane = activeLaneKey.value
+  if (!lane) return ep.streams as any[]
+  const filtered = (ep.streams as any[]).filter((s: any) =>
+    lanesEquivalent(streamLaneKey(s.serverName), lane)
+  )
+  return filtered.length ? filtered : (ep.streams as any[])
+})
 
 const laneFolded = reactive<Record<string, boolean>>({})
 
@@ -126,9 +172,14 @@ watch([activeEpisode, () => route.query.nguon], () => {
   }
   const q = String(route.query.nguon || '').trim()
   if (q) {
-    const match = ep.streams.find((s: any) => streamLaneKey(s.serverName) === q)
-    if (match) {
-      selectedServer.value = match
+    const inLane = ep.streams.filter((s: any) => lanesEquivalent(streamLaneKey(s.serverName), q))
+    if (inLane.length) {
+      const cur = selectedServer.value
+      if (cur && inLane.some((s: any) => s.id === cur.id)) {
+        selectedServer.value = cur
+        return
+      }
+      selectedServer.value = inLane[0]
       return
     }
   }
@@ -240,7 +291,7 @@ watch(() => route.params.slug, (s) => s && fetchAll(s as string), { immediate: t
       <div class="wep-player-row" :class="{ 'panel-open': showEpPanel }">
         <!-- Player column -->
         <div class="wep-player-col">
-          <VideoPlayer :src="streamUrl" @ended="onVideoEnded" />
+          <VideoPlayer :key="`${currentEpOrder}-${streamUrl}`" :src="streamUrl" @ended="onVideoEnded" />
         </div>
 
         <!-- Episode side panel -->
@@ -297,17 +348,17 @@ watch(() => route.params.slug, (s) => s && fetchAll(s as string), { immediate: t
         </div>
 
         <!-- Phim lẻ / Full: chọn bản phát (nhiều stream trên cùng tập) -->
-        <div class="wep-movie-source-row" v-if="movie.type === 'MOVIE' && activeEpisode?.streams?.length > 1">
+        <div class="wep-movie-source-row" v-if="movie.type === 'MOVIE' && streamsForCurrentLane.length > 1">
           <span class="wep-nav-label">Bản phát:</span>
           <div class="wep-sources">
             <button
-              v-for="srv in activeEpisode.streams"
+              v-for="srv in streamsForCurrentLane"
               :key="srv.id"
               type="button"
               class="wep-source-btn"
               :class="{ active: selectedServer?.id === srv.id }"
               @click="selectedServer = srv"
-            >{{ streamLaneKey(srv.serverName) || srv.serverName }}</button>
+            >{{ streamSourceButtonLabel(srv.serverName) }}</button>
           </div>
         </div>
 
@@ -361,24 +412,24 @@ watch(() => route.params.slug, (s) => s && fetchAll(s as string), { immediate: t
                 class="wep-lane-ep"
                 :class="{
                   active: ep.episodeOrder === currentEpOrder
-                    && streamLaneKey(selectedServer?.serverName) === lane,
+                    && lanesEquivalent(streamLaneKey(selectedServer?.serverName), lane),
                 }"
               >{{ ep.episodeOrder }}</router-link>
             </div>
           </section>
         </div>
 
-        <div class="wep-inline-source" v-else-if="movie.type !== 'MOVIE' && activeEpisode?.streams?.length > 1">
+        <div class="wep-inline-source" v-if="movie.type !== 'MOVIE' && streamsForCurrentLane.length > 1">
           <span class="wep-nav-label">Nguồn phát:</span>
           <div class="wep-sources">
             <button
-              v-for="srv in activeEpisode.streams"
+              v-for="srv in streamsForCurrentLane"
               :key="srv.id"
               type="button"
               class="wep-source-btn"
               :class="{ active: selectedServer?.id === srv.id }"
               @click="selectedServer = srv"
-            >{{ streamLaneKey(srv.serverName) || srv.serverName }}</button>
+            >{{ streamSourceButtonLabel(srv.serverName) }}</button>
           </div>
         </div>
       </div>

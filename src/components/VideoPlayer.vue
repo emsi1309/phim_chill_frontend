@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
 
 const props = defineProps<{ src: string }>()
 const emit = defineEmits<{ ended: [] }>()
@@ -16,6 +16,7 @@ const isEmbed = computed(() => !!props.src && !isHls.value)
 const onEnded = () => emit('ended')
 
 const loadHls = async (url: string) => {
+  await nextTick()
   if (!videoEl.value) return
   const HlsLib = (await import('hls.js')).default
   if (HlsLib.isSupported()) {
@@ -39,7 +40,7 @@ watch(() => props.src, async (newSrc) => {
   } else if (hlsInstance) {
     hlsInstance.destroy(); hlsInstance = null
   }
-}, { immediate: false })
+}, { flush: 'post' })
 
 onMounted(async () => {
   if (props.src && isHls.value) await loadHls(props.src)
