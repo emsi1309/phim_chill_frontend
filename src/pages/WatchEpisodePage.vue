@@ -50,6 +50,45 @@ const activeEpisode = computed(() => {
 
 const selectedServer = ref<any>(null)
 
+/** Nhóm hiển thị giống RoPhim: "Vietsub #1 - ..." → "Vietsub #1" */
+function streamLaneKey(serverName: string | undefined): string {
+  if (!serverName) return ''
+  const t = serverName.trim()
+  const cut = t.indexOf(' - ')
+  if (cut > 0) return t.slice(0, cut).trim()
+  return t
+}
+
+function laneSortOrder(key: string): number {
+  const k = key.toLowerCase()
+  if (k.includes('thuyết') || k.includes('thuyet')) return 0
+  if (k.includes('vietsub')) return 1
+  if (k.includes('lồng') || k.includes('long')) return 2
+  return 10
+}
+
+const laneKeys = computed(() => {
+  if (!movie.value?.episodes?.length) return [] as string[]
+  const set = new Set<string>()
+  for (const ep of movie.value.episodes) {
+    for (const s of ep.streams || []) {
+      const k = streamLaneKey(s.serverName)
+      if (k) set.add(k)
+    }
+  }
+  return [...set].sort((a, b) => laneSortOrder(a) - laneSortOrder(b) || a.localeCompare(b, 'vi'))
+})
+
+/** Mỗi server (Thuyết minh / Vietsub) có số tập khác nhau — chỉ hiện tập thật sự có stream trong lane đó. */
+function episodesInLane(laneKey: string) {
+  if (!movie.value?.episodes?.length || !laneKey) return [] as any[]
+  return movie.value.episodes.filter((ep: any) =>
+    (ep.streams || []).some((s: any) => streamLaneKey(s.serverName) === laneKey)
+  )
+}
+
+const laneFolded = reactive<Record<string, boolean>>({})
+
 const streamUrl = computed(() => selectedServer.value?.streamUrl || '')
 
 const genres = computed<string[]>(() => {
@@ -73,14 +112,33 @@ const epNavPath = (ep: any) => {
   return `/phim/${route.params.slug}/tap-${ep.episodeOrder}`
 }
 
-watch(activeEpisode, (ep) => {
-  if (ep?.streams?.length) selectedServer.value = ep.streams[0]
+function epRouteTo(ep: any, laneKey?: string) {
+  const path = epNavPath(ep)
+  if (movie.value?.type === 'MOVIE' || !laneKey) return { path }
+  return { path, query: { nguon: laneKey } }
+}
+
+watch([activeEpisode, () => route.query.nguon], () => {
+  const ep = activeEpisode.value as any
+  if (!ep?.streams?.length) {
+    selectedServer.value = null
+    return
+  }
+  const q = String(route.query.nguon || '').trim()
+  if (q) {
+    const match = ep.streams.find((s: any) => streamLaneKey(s.serverName) === q)
+    if (match) {
+      selectedServer.value = match
+      return
+    }
+  }
+  selectedServer.value = ep.streams[0]
 }, { immediate: true })
 
 // Auto-next: navigate to next episode when video ends
 const onVideoEnded = () => {
   if (autoNext.value && nextEp.value) {
-    router.push(epNavPath(nextEp.value))
+    router.push(epRouteTo(nextEp.value, String(route.query.nguon || '')))
   }
 }
 
@@ -156,9 +214,6 @@ const timeAgo = (iso: string) => {
 }
 
 watch(() => route.params.slug, (s) => s && fetchAll(s as string), { immediate: true })
-watch(currentEpOrder, () => {
-  if (activeEpisode.value?.streams?.length) selectedServer.value = activeEpisode.value.streams[0]
-})
 </script>
 
 <template>
@@ -241,54 +296,90 @@ watch(currentEpOrder, () => {
           </div>
         </div>
 
-        <!-- Sources + Episode nav + Auto-next -->
-        <div class="wep-nav-row">
-          <!-- Sources -->
-          <div class="wep-sources" v-if="activeEpisode?.streams?.length">
-            <span class="wep-nav-label">Nguồn phát:</span>
+        <!-- Phim lẻ / Full: chọn bản phát (nhiều stream trên cùng tập) -->
+        <div class="wep-movie-source-row" v-if="movie.type === 'MOVIE' && activeEpisode?.streams?.length > 1">
+          <span class="wep-nav-label">Bản phát:</span>
+          <div class="wep-sources">
             <button
               v-for="srv in activeEpisode.streams"
               :key="srv.id"
+              type="button"
               class="wep-source-btn"
               :class="{ active: selectedServer?.id === srv.id }"
               @click="selectedServer = srv"
-            >{{ srv.serverName }}</button>
+            >{{ streamLaneKey(srv.serverName) || srv.serverName }}</button>
           </div>
+        </div>
 
-          <!-- Episode navigation -->
-          <div class="wep-ep-nav">
-            <router-link
-              v-if="prevEp && movie.type !== 'MOVIE'"
-              :to="epNavPath(prevEp)"
-              class="wep-nav-btn"
-            >‹ Tập {{ prevEp.episodeOrder }}</router-link>
-            <span v-else class="wep-nav-btn disabled">‹ Trước</span>
+        <!-- Tập trước / sau + tự động — tách khỏi lưới server -->
+        <div class="wep-toolbar-row" v-if="movie.type !== 'MOVIE'">
+          <router-link
+            v-if="prevEp"
+            :to="epRouteTo(prevEp, String(route.query.nguon || ''))"
+            class="wep-nav-btn"
+          >‹ Tập {{ prevEp.episodeOrder }}</router-link>
+          <span v-else class="wep-nav-btn disabled">‹ Trước</span>
 
-            <div class="wep-ep-scroll">
-              <router-link
-                v-for="ep in movie.episodes"
-                :key="ep.id"
-                :to="epNavPath(ep)"
-                class="wep-ep-pill"
-                :class="{ active: ep.episodeOrder === currentEpOrder }"
-              >{{ movie.type === 'MOVIE' ? 'Full' : ep.episodeOrder }}</router-link>
-            </div>
+          <router-link
+            v-if="nextEp"
+            :to="epRouteTo(nextEp, String(route.query.nguon || ''))"
+            class="wep-nav-btn"
+          >Tập {{ nextEp.episodeOrder }} ›</router-link>
+          <span v-else class="wep-nav-btn disabled">Tiếp ›</span>
 
-            <router-link
-              v-if="nextEp && movie.type !== 'MOVIE'"
-              :to="epNavPath(nextEp)"
-              class="wep-nav-btn"
-            >Tập {{ nextEp.episodeOrder }} ›</router-link>
-            <span v-else class="wep-nav-btn disabled">Tiếp ›</span>
-          </div>
-
-          <!-- Auto-next toggle -->
-          <label class="wep-autonext-toggle">
-            <div class="toggle-switch" :class="{ on: autoNext }" @click="autoNext = !autoNext">
+          <label class="wep-autonext-toggle wep-toolbar-autonext">
+            <div class="toggle-switch" :class="{ on: autoNext }" @click.prevent="autoNext = !autoNext">
               <div class="toggle-knob" />
             </div>
             <span>Chuyển tập tự động</span>
           </label>
+        </div>
+
+        <!-- Server / lane giống RoPhim: mỗi Vietsub #n / Thuyết minh #n một khối, lưới tập bên dưới -->
+        <div class="wep-lane-stack" v-if="movie.type !== 'MOVIE' && laneKeys.length">
+          <section
+            v-for="lane in laneKeys"
+            :key="lane"
+            class="wep-lane"
+          >
+            <div class="wep-lane-head">
+              <div class="wep-lane-head-left">
+                <span class="wep-lane-dot" aria-hidden="true" />
+                <span class="wep-lane-title">{{ lane }}</span>
+              </div>
+              <label class="wep-lane-fold">
+                <span>Rút gọn</span>
+                <input type="checkbox" v-model="laneFolded[lane]" class="wep-lane-fold-input" />
+                <span class="wep-lane-switch" :class="{ on: laneFolded[lane] }"><i /></span>
+              </label>
+            </div>
+            <div v-show="!laneFolded[lane]" class="wep-lane-grid">
+              <router-link
+                v-for="ep in episodesInLane(lane)"
+                :key="`${lane}-${ep.id}`"
+                :to="epRouteTo(ep, lane)"
+                class="wep-lane-ep"
+                :class="{
+                  active: ep.episodeOrder === currentEpOrder
+                    && streamLaneKey(selectedServer?.serverName) === lane,
+                }"
+              >{{ ep.episodeOrder }}</router-link>
+            </div>
+          </section>
+        </div>
+
+        <div class="wep-inline-source" v-else-if="movie.type !== 'MOVIE' && activeEpisode?.streams?.length > 1">
+          <span class="wep-nav-label">Nguồn phát:</span>
+          <div class="wep-sources">
+            <button
+              v-for="srv in activeEpisode.streams"
+              :key="srv.id"
+              type="button"
+              class="wep-source-btn"
+              :class="{ active: selectedServer?.id === srv.id }"
+              @click="selectedServer = srv"
+            >{{ streamLaneKey(srv.serverName) || srv.serverName }}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -683,12 +774,141 @@ watch(currentEpOrder, () => {
   cursor: pointer;
 }
 
-.wep-nav-row {
+.wep-toolbar-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  padding-top: 4px;
 }
+.wep-toolbar-autonext { margin-left: auto; }
+
+.wep-movie-source-row,
+.wep-inline-source {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.wep-lane-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+  width: 100%;
+}
+.wep-lane {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.wep-lane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.wep-lane-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wep-lane-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f5c518, #e5a00d);
+  flex-shrink: 0;
+}
+.wep-lane-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wep-lane-fold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.wep-lane-fold-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.wep-lane-switch {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.2s;
+}
+.wep-lane-switch.on {
+  background: #e5a00d;
+}
+.wep-lane-switch i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  display: block;
+}
+.wep-lane-switch.on i {
+  transform: translateX(16px);
+}
+
+.wep-lane-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+  padding: 12px 14px 14px;
+  max-width: 100%;
+}
+.wep-lane-ep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.wep-lane-ep:hover {
+  background: var(--border);
+  color: #fff;
+}
+.wep-lane-ep.active {
+  background: linear-gradient(180deg, #f5c518 0%, #e5a00d 100%);
+  border-color: #f5c518;
+  color: #0f172a;
+}
+
 .wep-nav-label { font-size: 13px; color: #64748b; white-space: nowrap; }
 .wep-sources {
   display: flex;
@@ -709,13 +929,6 @@ watch(currentEpOrder, () => {
 .wep-source-btn:hover { background: var(--border); color: #e2e8f0; }
 .wep-source-btn.active { background: #e50914; border-color: #e50914; color: #fff; font-weight: 600; }
 
-.wep-ep-nav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
 .wep-nav-btn {
   padding: 6px 12px;
   background: var(--bg2);
@@ -731,37 +944,6 @@ watch(currentEpOrder, () => {
 }
 .wep-nav-btn:hover { background: var(--border); color: #e2e8f0; }
 .wep-nav-btn.disabled { opacity: 0.4; pointer-events: none; }
-
-.wep-ep-scroll {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  flex: 1;
-  padding: 2px 0;
-  scrollbar-width: thin;
-}
-.wep-ep-scroll::-webkit-scrollbar { height: 3px; }
-.wep-ep-scroll::-webkit-scrollbar-thumb { background: #4a4a6a; border-radius: 2px; }
-
-.wep-ep-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 30px;
-  padding: 0 6px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: #94a3b8;
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-.wep-ep-pill:hover { background: var(--border); color: #e2e8f0; }
-.wep-ep-pill.active { background: #e50914; border-color: #e50914; color: #fff; }
 
 /* Auto-next toggle */
 .wep-autonext-toggle {
